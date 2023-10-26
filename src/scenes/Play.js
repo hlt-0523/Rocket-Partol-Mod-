@@ -20,6 +20,19 @@ class Play extends Phaser.Scene {
 
         // green UI background
         this.add.rectangle(0, borderUISize + borderPadding, game.config.width, borderUISize * 2, 0x00FF00).setOrigin(0, 0);
+        this.frameCount = 0;
+
+
+        this.remainingTime = game.settings.gameTimer / 1000; // initial value, converted from milliseconds to seconds
+        this.timeText = this.add.text(20, 20, `Time: ${this.remainingTime}`, { fontSize: '32px', fill: '#fff' });
+
+        
+        this.explosionSounds = [
+            this.sound.add('explo1'),
+            this.sound.add('explo2'),
+            this.sound.add('explo3'),
+            this.sound.add('explo4')
+        ];
         
         
         // white borders
@@ -71,8 +84,6 @@ class Play extends Phaser.Scene {
             fixedWidth: 150
         }
         
-        this.timeLeft = this.add.text(game.config.width/2, borderUISize + borderPadding*2, 'Time: ' + Math.floor(this.clock.elapsed/1000), timeConfig).setOrigin(0.5);
-        
         // initialize score
         this.p1Score = 0;
 
@@ -104,6 +115,15 @@ class Play extends Phaser.Scene {
     }
 
     update() {
+        this.frameCount += 1;
+
+
+        // assuming your game is running at 60 frames per second
+        if (this.frameCount % 60 === 0) {
+            this.remainingTime -= 1;
+            this.timeText.setText(`Time: ${this.remainingTime}`);
+        }
+
         // check key input for restart / menu
         if(this.gameOver && Phaser.Input.Keyboard.JustDown(keyR)) {
             this.scene.restart();
@@ -113,16 +133,26 @@ class Play extends Phaser.Scene {
             this.scene.start("menuScene");
         }
     
+        
         this.starfield.tilePositionX -= 4;
-    
+        
+        
+        if (this.remainingTime <= 0) {
+            // end the game
+            this.gameOver = true;
+            this.add.text(game.config.width/2, game.config.height/2, 'GAME OVER', { fontFamily: 'Courier', fontSize: '28px', color: '#F3B141' }).setOrigin(0.5);
+            this.add.text(game.config.width/2, game.config.height/2 + 64, 'Press (R) to Restart or ← to Menu', { fontFamily: 'Courier', fontSize: '28px', color: '#F3B141' }).setOrigin(0.5);
+            this.clock.remove(false); // Removes the clock to stop it from triggering its callback
+        }
+        
+  
         if(!this.gameOver) {
             this.p1Rocket.update();
             this.ship01.update();
             this.ship02.update();
             this.ship03.update();
             this.fastShip.update(); // update fast spaceship
-            this.timeLeft.text = 'Time: ' + Math.floor((game.settings.gameTimer - this.clock.elapsed) / 1000);
-    
+
             // check collisions for all ships
             if(this.checkCollision(this.p1Rocket, this.fastShip)) {
                 this.p1Rocket.reset();
@@ -164,11 +194,15 @@ class Play extends Phaser.Scene {
             ship.alpha = 1;                       // make ship visible again
             boom.destroy();                       // remove explosion sprite
         });
-
+        
         this.p1Score += ship.points;
         this.scoreLeft.text = this.p1Score;
-        this.clock.delay -= 5000; // 5000 ms or 5 seconds 
+        this.remainingTime += 5; // 
+        this.timeText.setText(`Time: ${this.remainingTime}`);
         
-        this.sound.play('sfx_explosion');
+        let randomSound = Phaser.Math.RND.pick(this.explosionSounds);
+        randomSound.play();
+
+        //this.sound.play('sfx_explosion');
       }
 }
